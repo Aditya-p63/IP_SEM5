@@ -1,0 +1,88 @@
+* { box-sizing: border-box; }
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f8;
+  color: #222;
+  margin: 0;
+}
+
+header {
+  background: #6a1b9a;
+  color: white;
+  padding: 12px 20px;
+}
+
+header a {
+  color: white;
+  margin-right: 15px;
+  text-decoration: none;
+}
+
+header a:hover { text-decoration: underline; }
+
+main {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 0 15px;
+}
+
+.card {
+  background: white;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+label { display: block; margin-top: 10px; font-weight: bold; }
+
+input, select {
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+}
+
+button {
+  background: #6a1b9a;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  margin-top: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover { background: #4a148c; }
+button.danger { background: #c62828; }
+button.secondary { background: #757575; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+th { background: #eee; }
+
+#message {
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 4px;
+  display: none;
+}
+
+#message.success { display: block; background: #c8e6c9; color: #1b5e20; }
+#message.error { display: block; background: #ffcdd2; color: #b71c1c; }
+
+.slot-btn { margin-right: 6px; }
+.slot-btn.selected { background: #2e7d32; }
+
+input[type="checkbox"] {
+  width: auto;
+  margin-right: 6px;
+}
+
+.inline-label {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+}

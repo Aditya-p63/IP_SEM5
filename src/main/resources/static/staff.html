@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Staff</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <a href="index.html">Home</a>
+    <a href="salons.html">Salons</a>
+    <a href="services.html">Services</a>
+    <a href="staff.html">Staff</a>
+</header>
+
+<main>
+    <div id="message"></div>
+
+    <div class="card">
+        <label>Salon</label>
+        <select id="salonSelect"></select>
+    </div>
+
+    <div class="card">
+        <h2 id="formTitle">Add Staff Member</h2>
+        <form id="staffForm">
+            <input type="hidden" id="staffId">
+
+            <label>Name</label>
+            <input type="text" id="name" required>
+
+            <label>Specialization</label>
+            <input type="text" id="specialization">
+
+            <label class="inline-label">
+                <input type="checkbox" id="active" checked> Active
+            </label>
+
+            <button type="submit">Save</button>
+            <button type="button" class="secondary" onclick="resetForm()">Clear</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Staff</h2>
+        <table>
+            <thead>
+            <tr><th>ID</th><th>Name</th><th>Specialization</th><th>Active</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="staffTable"></tbody>
+        </table>
+    </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+    const salonSelect = document.getElementById('salonSelect');
+
+    async function loadSalons() {
+      try {
+        const salons = await api('/salons');
+        salonSelect.innerHTML = '';
+        salons.forEach(s => {
+          salonSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+        loadStaff();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function loadStaff() {
+      const salonId = salonSelect.value;
+      if (!salonId) return;
+      try {
+        const list = await api('/salons/' + salonId + '/staff');
+        const tbody = document.getElementById('staffTable');
+        tbody.innerHTML = '';
+
+        list.forEach(s => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${s.id}</td>
+              <td>${s.name}</td>
+              <td>${s.specialization ?? ''}</td>
+              <td>${s.active ? 'Yes' : 'No'}</td>
+              <td>
+                <button onclick="editStaff(${s.id})">Edit</button>
+                <button class="danger" onclick="deleteStaff(${s.id})">Delete</button>
+              </td>
+            </tr>`;
+        });
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function editStaff(id) {
+      try {
+        const s = await api('/staff/' + id);
+        document.getElementById('staffId').value = s.id;
+        document.getElementById('name').value = s.name;
+        document.getElementById('specialization').value = s.specialization ?? '';
+        document.getElementById('active').checked = s.active;
+        document.getElementById('formTitle').textContent = 'Edit Staff Member';
+        window.scrollTo(0, 0);
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function deleteStaff(id) {
+      if (!confirm('Delete this staff member?')) return;
+      try {
+        await api('/staff/' + id, 'DELETE');
+        showMessage('Staff member deleted');
+        loadStaff();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('staffForm').reset(); // checkbox returns to checked
+      document.getElementById('staffId').value = '';
+      document.getElementById('formTitle').textContent = 'Add Staff Member';
+    }
+
+    salonSelect.addEventListener('change', () => {
+      resetForm();
+      loadStaff();
+    });
+
+    document.getElementById('staffForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const id = document.getElementById('staffId').value;
+      const body = {
+        name: document.getElementById('name').value,
+        specialization: document.getElementById('specialization').value,
+        active: document.getElementById('active').checked
+      };
+
+      try {
+        if (id) {
+          await api('/staff/' + id, 'PUT', body);
+          showMessage('Staff member updated');
+        } else {
+          await api('/salons/' + salonSelect.value + '/staff', 'POST', body);
+          showMessage('Staff member added');
+        }
+        resetForm();
+        loadStaff();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    });
+
+    loadSalons();
+</script>
+</body>
+</html>

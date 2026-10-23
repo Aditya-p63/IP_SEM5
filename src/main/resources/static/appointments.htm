@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Appointments</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <a href="index.html">Home</a>
+    <a href="book.html">Book</a>
+    <a href="appointments.html">Appointments</a>
+    <a href="dashboard.html">Dashboard</a>
+</header>
+
+<main>
+    <div id="message"></div>
+
+    <div class="card">
+        <label>Salon</label>
+        <select id="salonSelect"></select>
+
+        <label>Date</label>
+        <input type="date" id="dateInput">
+
+        <button type="button" onclick="loadAppointments()">Show appointments</button>
+    </div>
+
+    <div class="card">
+        <h2>Appointments</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th><th>Customer</th><th>Phone</th><th>Service</th>
+                <th>Staff</th><th>Time</th><th>Status</th><th>Actions</th>
+            </tr>
+            </thead>
+            <tbody id="appointmentTable"></tbody>
+        </table>
+        <p id="emptyText"></p>
+    </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+    const salonSelect = document.getElementById('salonSelect');
+    const dateInput = document.getElementById('dateInput');
+
+    // Default the date to today (local time)
+    const today = new Date();
+    dateInput.value = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
+
+    async function loadSalons() {
+      try {
+        const salons = await api('/salons');
+        salonSelect.innerHTML = '';
+        salons.forEach(s => {
+          salonSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+        loadAppointments();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function loadAppointments() {
+      const salonId = salonSelect.value;
+      const date = dateInput.value;
+      if (!salonId || !date) return;
+
+      try {
+        const list = await api('/salons/' + salonId + '/appointments?date=' + date);
+        const tbody = document.getElementById('appointmentTable');
+        tbody.innerHTML = '';
+        document.getElementById('emptyText').textContent =
+          list.length === 0 ? 'No appointments on this date.' : '';
+
+        list.forEach(a => {
+          const cancelled = a.status === 'CANCELLED';
+          tbody.innerHTML += `
+            <tr>
+              <td>${a.id}</td>
+              <td>${a.customerName}</td>
+              <td>${a.customerPhone}</td>
+              <td>${a.serviceName ?? a.serviceId}</td>
+              <td>${a.staffName ?? a.staffId}</td>
+              <td>${formatDateTime(a.startTime)}</td>
+              <td>${a.status}</td>
+              <td>
+                ${cancelled ? '' : `<button class="secondary" onclick="cancelAppointment(${a.id})">Cancel</button>`}
+                <button class="danger" onclick="deleteAppointment(${a.id})">Delete</button>
+              </td>
+            </tr>`;
+        });
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function cancelAppointment(id) {
+      if (!confirm('Cancel this appointment?')) return;
+      try {
+        await api('/appointments/' + id + '/cancel', 'PATCH');
+        showMessage('Appointment cancelled');
+        loadAppointments();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function deleteAppointment(id) {
+      if (!confirm('Delete this appointment permanently?')) return;
+      try {
+        await api('/appointments/' + id, 'DELETE');
+        showMessage('Appointment deleted');
+        loadAppointments();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    salonSelect.addEventListener('change', loadAppointments);
+    dateInput.addEventListener('change', loadAppointments);
+
+    loadSalons();
+</script>
+</body>
+</html>

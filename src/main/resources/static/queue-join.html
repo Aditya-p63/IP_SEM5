@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Join Queue</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <a href="index.html">Home</a>
+    <a href="book.html">Book</a>
+    <a href="queue-join.html">Join Queue</a>
+    <a href="queue-status.html">Queue Status</a>
+</header>
+
+<main>
+    <div id="message"></div>
+
+    <div class="card">
+        <h2>Join the Queue</h2>
+        <form id="joinForm">
+            <label>Salon</label>
+            <select id="salonSelect"></select>
+
+            <label>Service</label>
+            <select id="serviceSelect"></select>
+
+            <label>Your name</label>
+            <input type="text" id="customerName" required>
+
+            <label>Phone</label>
+            <input type="text" id="customerPhone" required>
+
+            <button type="submit">Join queue</button>
+        </form>
+    </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+    const salonSelect = document.getElementById('salonSelect');
+    const serviceSelect = document.getElementById('serviceSelect');
+
+    async function loadSalons() {
+      try {
+        const salons = await api('/salons');
+        salonSelect.innerHTML = '';
+        salons.forEach(s => {
+          salonSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+        loadServices();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function loadServices() {
+      const salonId = salonSelect.value;
+      if (!salonId) return;
+      try {
+        const services = await api('/salons/' + salonId + '/services');
+        serviceSelect.innerHTML = '';
+        services.forEach(s => {
+          serviceSelect.innerHTML +=
+            `<option value="${s.id}">${s.name} (${s.durationMinutes} min, ${s.price})</option>`;
+        });
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    salonSelect.addEventListener('change', loadServices);
+
+    document.getElementById('joinForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const body = {
+        customerName: document.getElementById('customerName').value,
+        customerPhone: document.getElementById('customerPhone').value,
+        serviceId: Number(serviceSelect.value)
+      };
+
+      try {
+        const entry = await api('/salons/' + salonSelect.value + '/queue', 'POST', body);
+        showMessage('You joined the queue! Your queue number is ' + entry.id + '. Redirecting...');
+        // Go to the live status page for this entry
+        setTimeout(() => {
+          window.location.href = 'queue-status.html?id=' + entry.id;
+        }, 1000);
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    });
+
+    loadSalons();
+</script>
+</body>
+</html>

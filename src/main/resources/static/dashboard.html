@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Queue Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <a href="index.html">Home</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="appointments.html">Appointments</a>
+</header>
+
+<main>
+    <div id="message"></div>
+
+    <div class="card">
+        <label>Salon</label>
+        <select id="salonSelect"></select>
+
+        <label>I am (staff member)</label>
+        <select id="staffSelect"></select>
+
+        <p><small id="updated"></small></p>
+    </div>
+
+    <div class="card">
+        <h2>In Service</h2>
+        <table>
+            <thead>
+            <tr><th>ID</th><th>Customer</th><th>Phone</th><th>Service</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="inServiceTable"></tbody>
+        </table>
+        <p id="inServiceEmpty"></p>
+    </div>
+
+    <div class="card">
+        <h2>Waiting</h2>
+        <table>
+            <thead>
+            <tr><th>#</th><th>ID</th><th>Customer</th><th>Phone</th><th>Service</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="waitingTable"></tbody>
+        </table>
+        <p id="waitingEmpty"></p>
+    </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+    const salonSelect = document.getElementById('salonSelect');
+    const staffSelect = document.getElementById('staffSelect');
+
+    async function loadSalons() {
+      try {
+        const salons = await api('/salons');
+        salonSelect.innerHTML = '';
+        salons.forEach(s => {
+          salonSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+        await loadStaff();
+        loadQueue();
+        setInterval(loadQueue, 5000); // refresh every 5 seconds
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function loadStaff() {
+      const salonId = salonSelect.value;
+      if (!salonId) return;
+      try {
+        const list = await api('/salons/' + salonId + '/staff');
+        staffSelect.innerHTML = '';
+        list.filter(s => s.active).forEach(s => {
+          staffSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function loadQueue() {
+      const salonId = salonSelect.value;
+      if (!salonId) return;
+      try {
+        const waiting = await api('/salons/' + salonId + '/queue?status=WAITING');
+        const inService = await api('/salons/' + salonId + '/queue?status=IN_SERVICE');
+
+        const inBody = document.getElementById('inServiceTable');
+        inBody.innerHTML = '';
+        document.getElementById('inServiceEmpty').textContent =
+          inService.length === 0 ? 'Nobody in service.' : '';
+        inService.forEach(q => {
+          inBody.innerHTML += `
+            <tr>
+              <td>${q.id}</td>
+              <td>${q.customerName}</td>
+              <td>${q.customerPhone}</td>
+              <td>${q.serviceName ?? q.serviceId}</td>
+              <td><button onclick="changeStatus(${q.id}, 'DONE')">Done</button></td>
+            </tr>`;
+        });
+
+        const waitBody = document.getElementById('waitingTable');
+        waitBody.innerHTML = '';
+        document.getElementById('waitingEmpty').textContent =
+          waiting.length === 0 ? 'Nobody is waiting.' : '';
+        waiting.forEach((q, index) => {
+          waitBody.innerHTML += `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${q.id}</td>
+              <td>${q.customerName}</td>
+              <td>${q.customerPhone}</td>
+              <td>${q.serviceName ?? q.serviceId}</td>
+              <td>
+                <button onclick="changeStatus(${q.id}, 'IN_SERVICE')">Start</button>
+                <button class="danger" onclick="changeStatus(${q.id}, 'LEFT')">Leave</button>
+              </td>
+            </tr>`;
+        });
+
+        document.getElementById('updated').textContent =
+          'Last updated: ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function changeStatus(id, status) {
+      let path = '/queue/' + id + '/status?status=' + status;
+
+      if (status === 'IN_SERVICE') {
+        if (!staffSelect.value) {
+          showMessage('Please choose a staff member first', 'error');
+          return;
+        }
+        path += '&staffId=' + staffSelect.value;
+      }
+
+      try {
+        await api(path, 'PATCH');
+        showMessage('Updated to ' + status);
+        loadQueue();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    salonSelect.addEventListener('change', async () => {
+      await loadStaff();
+      loadQueue();
+    });
+
+    loadSalons();
+</script>
+</body>
+</html>

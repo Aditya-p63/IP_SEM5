@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Queue Status</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .big { font-size: 40px; font-weight: bold; color: #6a1b9a; margin: 5px 0; }
+        .stat { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+<header>
+    <a href="index.html">Home</a>
+    <a href="queue-join.html">Join Queue</a>
+    <a href="queue-status.html">Queue Status</a>
+</header>
+
+<main>
+    <div id="message"></div>
+
+    <div class="card">
+        <label>Your queue number</label>
+        <input type="number" id="entryIdInput" min="1">
+        <button type="button" onclick="startTracking()">Check status</button>
+    </div>
+
+    <div class="card" id="statusCard" style="display:none;">
+        <h2 id="customerName"></h2>
+
+        <div class="stat">
+            <div>Status</div>
+            <div class="big" id="status"></div>
+        </div>
+
+        <div class="stat">
+            <div>Position in queue</div>
+            <div class="big" id="position"></div>
+        </div>
+
+        <div class="stat">
+            <div>Estimated wait</div>
+            <div class="big" id="wait"></div>
+        </div>
+
+        <p id="statusMessage"></p>
+        <p><small id="updated"></small></p>
+    </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+    let entryId = null;
+    let timer = null;
+
+    async function loadStatus() {
+      try {
+        const s = await api('/queue/' + entryId + '/status');
+
+        document.getElementById('statusCard').style.display = 'block';
+        document.getElementById('customerName').textContent = s.customerName;
+        document.getElementById('status').textContent = s.status;
+        document.getElementById('position').textContent =
+          s.status === 'WAITING' ? s.position : '-';
+        document.getElementById('wait').textContent =
+          s.status === 'WAITING' ? s.estimatedWaitMinutes + ' min' : '-';
+        document.getElementById('statusMessage').textContent = s.message ?? '';
+        document.getElementById('updated').textContent =
+          'Last updated: ' + new Date().toLocaleTimeString();
+        document.getElementById('message').className = ''; // hide old errors
+
+        // Stop refreshing once the entry is finished
+        if (s.status === 'DONE' || s.status === 'LEFT') {
+          clearInterval(timer);
+          timer = null;
+        }
+      } catch (e) {
+        showMessage(e.message, 'error');
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    function startTracking() {
+      const value = document.getElementById('entryIdInput').value;
+      if (!value) {
+        showMessage('Please enter your queue number', 'error');
+        return;
+      }
+      entryId = value;
+
+      // Keep the ID in the URL so a page refresh still works
+      history.replaceState(null, '', '?id=' + entryId);
+
+      if (timer) clearInterval(timer);
+      loadStatus();
+      timer = setInterval(loadStatus, 5000); // every 5 seconds
+    }
+
+    // If the URL has ?id=5, start tracking right away
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('id')) {
+      document.getElementById('entryIdInput').value = params.get('id');
+      startTracking();
+    }
+</script>
+</body>
+</html>

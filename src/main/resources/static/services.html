@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Services</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <a href="index.html">Home</a>
+    <a href="salons.html">Salons</a>
+    <a href="services.html">Services</a>
+    <a href="staff.html">Staff</a>
+</header>
+
+<main>
+    <div id="message"></div>
+
+    <div class="card">
+        <label>Salon</label>
+        <select id="salonSelect"></select>
+    </div>
+
+    <div class="card">
+        <h2 id="formTitle">Add Service</h2>
+        <form id="serviceForm">
+            <input type="hidden" id="serviceId">
+
+            <label>Name</label>
+            <input type="text" id="name" required>
+
+            <label>Duration (minutes)</label>
+            <input type="number" id="durationMinutes" min="1" required>
+
+            <label>Price</label>
+            <input type="number" id="price" min="0" step="0.01" required>
+
+            <button type="submit">Save</button>
+            <button type="button" class="secondary" onclick="resetForm()">Clear</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Services</h2>
+        <table>
+            <thead>
+            <tr><th>ID</th><th>Name</th><th>Duration</th><th>Price</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="serviceTable"></tbody>
+        </table>
+    </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+    const salonSelect = document.getElementById('salonSelect');
+
+    async function loadSalons() {
+      try {
+        const salons = await api('/salons');
+        salonSelect.innerHTML = '';
+        salons.forEach(s => {
+          salonSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+        loadServices();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function loadServices() {
+      const salonId = salonSelect.value;
+      if (!salonId) return;
+      try {
+        const services = await api('/salons/' + salonId + '/services');
+        const tbody = document.getElementById('serviceTable');
+        tbody.innerHTML = '';
+
+        services.forEach(s => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${s.id}</td>
+              <td>${s.name}</td>
+              <td>${s.durationMinutes} min</td>
+              <td>${s.price}</td>
+              <td>
+                <button onclick="editService(${s.id})">Edit</button>
+                <button class="danger" onclick="deleteService(${s.id})">Delete</button>
+              </td>
+            </tr>`;
+        });
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function editService(id) {
+      try {
+        const s = await api('/services/' + id);
+        document.getElementById('serviceId').value = s.id;
+        document.getElementById('name').value = s.name;
+        document.getElementById('durationMinutes').value = s.durationMinutes;
+        document.getElementById('price').value = s.price;
+        document.getElementById('formTitle').textContent = 'Edit Service';
+        window.scrollTo(0, 0);
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function deleteService(id) {
+      if (!confirm('Delete this service?')) return;
+      try {
+        await api('/services/' + id, 'DELETE');
+        showMessage('Service deleted');
+        loadServices();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('serviceForm').reset();
+      document.getElementById('serviceId').value = '';
+      document.getElementById('formTitle').textContent = 'Add Service';
+    }
+
+    salonSelect.addEventListener('change', () => {
+      resetForm();
+      loadServices();
+    });
+
+    document.getElementById('serviceForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const id = document.getElementById('serviceId').value;
+      const body = {
+        name: document.getElementById('name').value,
+        durationMinutes: Number(document.getElementById('durationMinutes').value),
+        price: Number(document.getElementById('price').value)
+      };
+
+      try {
+        if (id) {
+          await api('/services/' + id, 'PUT', body);
+          showMessage('Service updated');
+        } else {
+          await api('/salons/' + salonSelect.value + '/services', 'POST', body);
+          showMessage('Service added');
+        }
+        resetForm();
+        loadServices();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    });
+
+    loadSalons();
+</script>
+</body>
+</html>

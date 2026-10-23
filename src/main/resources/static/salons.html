@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Salons</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <a href="index.html">Home</a>
+    <a href="salons.html">Salons</a>
+    <a href="services.html">Services</a>
+    <a href="staff.html">Staff</a>
+</header>
+
+<main>
+    <div id="message"></div>
+
+    <div class="card">
+        <h2 id="formTitle">Add Salon</h2>
+        <form id="salonForm">
+            <input type="hidden" id="salonId">
+
+            <label>Name</label>
+            <input type="text" id="name" required>
+
+            <label>Address</label>
+            <input type="text" id="address">
+
+            <label>Phone</label>
+            <input type="text" id="phone">
+
+            <label>Opening time</label>
+            <input type="time" id="openTime" required>
+
+            <label>Closing time</label>
+            <input type="time" id="closeTime" required>
+
+            <button type="submit">Save</button>
+            <button type="button" class="secondary" onclick="resetForm()">Clear</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>All Salons</h2>
+        <table>
+            <thead>
+            <tr><th>ID</th><th>Name</th><th>Address</th><th>Phone</th><th>Hours</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="salonTable"></tbody>
+        </table>
+    </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+    async function loadSalons() {
+      try {
+        const salons = await api('/salons');
+        const tbody = document.getElementById('salonTable');
+        tbody.innerHTML = '';
+
+        salons.forEach(s => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${s.id}</td>
+              <td>${s.name}</td>
+              <td>${s.address ?? ''}</td>
+              <td>${s.phone ?? ''}</td>
+              <td>${s.openTime} - ${s.closeTime}</td>
+              <td>
+                <button onclick="editSalon(${s.id})">Edit</button>
+                <button class="danger" onclick="deleteSalon(${s.id})">Delete</button>
+              </td>
+            </tr>`;
+        });
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function editSalon(id) {
+      try {
+        const s = await api('/salons/' + id);
+        document.getElementById('salonId').value = s.id;
+        document.getElementById('name').value = s.name;
+        document.getElementById('address').value = s.address ?? '';
+        document.getElementById('phone').value = s.phone ?? '';
+        document.getElementById('openTime').value = s.openTime.substring(0, 5);
+        document.getElementById('closeTime').value = s.closeTime.substring(0, 5);
+        document.getElementById('formTitle').textContent = 'Edit Salon';
+        window.scrollTo(0, 0);
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    async function deleteSalon(id) {
+      if (!confirm('Delete this salon?')) return;
+      try {
+        await api('/salons/' + id, 'DELETE');
+        showMessage('Salon deleted');
+        loadSalons();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('salonForm').reset();
+      document.getElementById('salonId').value = '';
+      document.getElementById('formTitle').textContent = 'Add Salon';
+    }
+
+    document.getElementById('salonForm').addEventListener('submit', async (event) => {
+      event.preventDefault(); // stop the page from reloading
+
+      const id = document.getElementById('salonId').value;
+      const body = {
+        name: document.getElementById('name').value,
+        address: document.getElementById('address').value,
+        phone: document.getElementById('phone').value,
+        openTime: document.getElementById('openTime').value,
+        closeTime: document.getElementById('closeTime').value
+      };
+
+      try {
+        if (id) {
+          await api('/salons/' + id, 'PUT', body);
+          showMessage('Salon updated');
+        } else {
+          await api('/salons', 'POST', body);
+          showMessage('Salon added');
+        }
+        resetForm();
+        loadSalons();
+      } catch (e) {
+        showMessage(e.message, 'error');
+      }
+    });
+
+    loadSalons();
+</script>
+</body>
+</html>
